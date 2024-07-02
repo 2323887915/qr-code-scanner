@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Scanner</title>
+</head>
+
+<body>
+    <h1>QR Code Scanner</h1>
+    <select id="cameraSelect"></select>
+    <video id="video" width="300" height="200" style="border: 1px solid black"></video>
+
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.5/umd/index.min.js"></script>
+    <script>
+        window.addEventListener('load', function () {
+            const codeReader = new ZXing.BrowserMultiFormatReader();
+            const video = document.getElementById('video');
+            const cameraSelect = document.getElementById('cameraSelect');
+
+            codeReader.listVideoInputDevices().then((videoInputDevices) => {
+                videoInputDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+
+                cameraSelect.addEventListener('change', (event) => {
+                    codeReader.decodeOnceFromVideoDevice(event.target.value, 'video').then((result) => {
+                        console.log(result.text);
+                        alert(`QR Code detected: ${result.text}`);
+                    }).catch((err) => {
+                        console.error(err);
+                        alert(`Error: ${err}`);
+                    });
+                });
+
+                // Automatically start scanning using the first available camera
+                if (videoInputDevices.length > 0) {
+                    cameraSelect.value = videoInputDevices[0].deviceId;
+                    const event = new Event('change');
+                    cameraSelect.dispatchEvent(event);
+                }
+            }).catch((err) => {
+                console.error(err);
+                alert(`Error: ${err}`);
+            });
+        });
+    </script>
+</body>
+
+</html>
