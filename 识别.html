@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Scanner</title>
+</head>
+<body>
+    <h1>QR Code Scanner</h1>
+    <select id="cameraSelect"></select>
+    <video id="video" width="300" height="200" style="border: 1px solid black" autoplay></video>
+    <div id="message"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.18.5/umd/index.min.js"></script>
+    <script>
+        async function requestCameraPermission() {
+            try {
+                // 请求摄像头权限
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                console.log('Camera permission granted.');
+            } catch (err) {
+                console.error('Camera permission denied.', err);
+                document.getElementById('message').innerText = `Error: ${err.message}. Please allow camera access.`;
+                throw err;
+            }
+        }
+
+        async function startScanner() {
+            const codeReader = new ZXing.BrowserMultiFormatReader();
+            const video = document.getElementById('video');
+            const cameraSelect = document.getElementById('cameraSelect');
+            const messageDiv = document.getElementById('message');
+
+            try {
+                const videoInputDevices = await codeReader.listVideoInputDevices();
+                if (videoInputDevices.length === 0) {
+                    throw new Error('No video input devices found');
+                }
+                videoInputDevices.forEach((device, index) => {
+                    const option = document.createElement('option');
+                    option.value = device.deviceId;
+                    option.text = device.label || `Camera ${index + 1}`;
+                    cameraSelect.appendChild(option);
+                });
+
+                cameraSelect.addEventListener('change', async (event) => {
+                    messageDiv.innerText = 'Starting camera...';
+                    try {
+                        const selectedDeviceId = event.target.value;
+                        await codeReader.decodeOnceFromVideoDevice(selectedDeviceId, 'video').then((result) => {
+                            messageDiv.innerText = `QR Code detected: ${result.text}`;
+                        }).catch((err) => {
+                            console.error(err);
+                            messageDiv.innerText = `Error: ${err}`;
+                        });
+                    } catch (err) {
+                        console.error(err);
+                        messageDiv.innerText = `Error: ${err}`;
+                    }
+                });
+
+                // Automatically start scanning using the first available camera
+                if (videoInputDevices.length > 0) {
+                    cameraSelect.value = videoInputDevices[0].deviceId;
+                    const event = new Event('change');
+                    cameraSelect.dispatchEvent(event);
+                }
+            } catch (err) {
+                console.error(err);
+                messageDiv.innerText = `Error: ${err.message}`;
+                if (err.name === 'NotAllowedError') {
+                    messageDiv.innerText += '. Please allow camera access.';
+                } else if (err.name === 'NotFoundError') {
+                    messageDiv.innerText += '. No camera device found.';
+                } else if (err.name === 'NotReadableError') {
+                    messageDiv.innerText += '. Camera device is not readable.';
+                } else if (err.name === 'OverconstrainedError') {
+                    messageDiv.innerText += '. Constraints cannot be satisfied by the available camera devices.';
+                } else {
+                    messageDiv.innerText += '. An unknown error occurred.';
+                }
+            }
+        }
+
+        window.addEventListener('load', async () => {
+            try {
+                await requestCameraPermission();
+                startScanner();
+            } catch (err) {
+                // 错误已经在 requestCameraPermission 中处理
+            }
+        });
+    </script>
+</body>
+</html>
